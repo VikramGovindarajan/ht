@@ -89,6 +89,62 @@ def Nusselt_laminar(Tsat, Tw, rhog, rhol, kl, mul, Hvap, L, angle=90.):
     return 2.*2.**0.5/3.*(kl**3*rhol*(rhol - rhog)*g*sin(angle/180.*pi)
                           *Hvap/(mul*(Tsat - Tw)*L))**0.25
 
+def Nusselt_laminar2(Tsat, Tw, rhog, rhol, kl, mul, Cpl, Hvap, D):
+    r'''Calculates the average heat transfer coefficient for laminar film condensation
+    of a pure chemical on the outside of a single horizontal tube , as presented in [1].
+
+    .. math::
+        h=0.725\left[\frac{g\rho_{liq}(\rho_l-\rho_v)k_{l}^3
+        \Delta H_{vapd}}{\mu_l(T_{sat}-T_w)D}\right]^{0.25} where
+        
+    .. math:
+        Hvapd=Hvap*(1. + 0.68*(Cpl*(Tsat - Tw)/Hvap))
+
+    Parameters
+    ----------
+    Tsat : float
+        Saturation temperature at operating pressure [Pa]
+    Tw : float
+        Wall temperature, [K]
+    rhog : float
+        Density of the gas [kg/m^3]
+    rhol : float
+        Density of the liquid [kg/m^3]
+    kl : float
+        Thermal conductivity of liquid [W/m/K]
+    mul : float
+        Viscosity of liquid [Pa*s]
+    Cpl : float
+        Constant-pressure heat capacity of liquid [J/kg/K]
+    Hvap : float
+        Heat of vaporization of the fluid at P, [J/kg]
+    D : float
+        Diameter of the tubing [m]
+
+    Returns
+    -------
+    h : float
+        Heat transfer coefficient [W/m^2/K]
+
+    Examples
+    --------
+    p. 578 in [1]_, matches exactly.
+
+    >>> Nusselt_laminar2(Tsat=370, Tw=350, rhog=7.0, rhol=585., kl=0.091,
+    ... mul=158.9E-6, Hvap=776900, L=0.1)
+    1482.206403453679
+
+    References
+    ----------
+    .. [1] J. G. Collier, Convective boiling and condensation, 3rd ed. 
+        Oxford University Press, 1994.
+    '''
+
+    Hvapd = Hvap*(1. + 0.68*(Cpl*(Tsat - Tw)/Hvap)) #Modifed latent heat of vaporization
+    
+    return 0.725*(kl**3*rhol*(rhol - rhog)*g
+                          *Hvapd/(mul*(Tsat - Tw)*D))**0.25
+
 
 def Boyko_Kruzhilin(m, rhog, rhol, kl, mul, Cpl, D, x):
     r'''Calculates heat transfer coefficient for condensation

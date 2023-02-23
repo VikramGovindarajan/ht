@@ -21,12 +21,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.'''
 
 from __future__ import division
-from fluids import *
-from ht import *
+from fluids import AirCooledExchanger
+from ht import Nu_external_horizontal_plate_methods, h_Ganguli_VDI
 import ht.vectorized
-from math import *
-from fluids.constants import *
-from fluids.numerics import assert_close, assert_close1d
+from fluids.constants import foot, inch
+from fluids.numerics import assert_close
 import pytest
 try:
     import numba

@@ -22,12 +22,11 @@ SOFTWARE.'''
 
 from __future__ import division
 from math import exp, log, floor, sqrt, tanh  # tanh= 1/coth
-import math
 import os
 from fluids.constants import inch, foot, degree_Fahrenheit, hour, Btu
-from fluids.numerics import horner, newton, ridder, quad, secant, quad, bisect, gamma, factorial
+from fluids.numerics import bisect, factorial, gamma, horner, quad, quad, ridder, secant
 from fluids.numerics import iv
-from fluids.piping import BWG_integers, BWG_inch, BWG_SI
+from fluids.piping import BWG_SI, BWG_integers
 from fluids.numerics import numpy as np
 
 __all__ = ['effectiveness_from_NTU', 'NTU_from_effectiveness', 'calc_Cmin',
@@ -68,7 +67,7 @@ def crossflow_effectiveness_to_int(v, NTU, t0):
     x0 = v*v*t0
     return (1. + NTU - x0)*exp(-x0)*v*float(iv(0.0, v))
 
-def effectiveness_from_NTU(NTU, Cr, subtype='counterflow'):
+def effectiveness_from_NTU(NTU, Cr, subtype='counterflow', n_shell_tube=None):
     r'''Returns the effectiveness of a heat exchanger at a specified heat
     capacity rate, number of transfer units, and configuration. The following
     configurations are supported:
@@ -159,8 +158,9 @@ def effectiveness_from_NTU(NTU, Cr, subtype='counterflow'):
     subtype : str, optional
         The subtype of exchanger; one of 'counterflow', 'parallel', 'crossflow'
         'crossflow approximate', 'crossflow, mixed Cmin',
-        'crossflow, mixed Cmax', 'boiler', 'condenser', 'S&T', or 'nS&T' where
-        n is the number of shell and tube exchangers in a row.
+        'crossflow, mixed Cmax', 'boiler', 'condenser', 'S&T'
+    n_shell_tube : None or int, optional
+        The number of shell and tube exchangers in a row, [-]
 
     Returns
     -------
@@ -233,7 +233,7 @@ def effectiveness_from_NTU(NTU, Cr, subtype='counterflow'):
 
     >>> effectiveness_from_NTU(NTU=5, Cr=0.7, subtype='S&T')
     0.683497704431
-    >>> effectiveness_from_NTU(NTU=5, Cr=0.7, subtype='50S&T')
+    >>> effectiveness_from_NTU(NTU=5, Cr=0.7, subtype='S&T', n_shell_tube=50)
     0.920505870278
 
 
@@ -299,12 +299,12 @@ def effectiveness_from_NTU(NTU, Cr, subtype='counterflow'):
             return NTU/(1. + NTU)
     elif subtype == 'parallel':
             return (1. - exp(-NTU*(1. + Cr)))/(1. + Cr)
-    elif 'S&T' in subtype:
-        str_shells = subtype.split('S&T')[0]
-        shells = int(str_shells) if str_shells else 1
+    elif 'S&T' == subtype:
+        # str_shells = subtype.split('S&T')[0]
+        shells = n_shell_tube if n_shell_tube is not None else 1
         NTU = NTU/shells
 
-        x0 = (1. + Cr*Cr)**.5
+        x0 = sqrt(1. + Cr*Cr)
         x1 = exp(-NTU*x0)
         top = 1. + x1
         bottom = 1. - x1
@@ -316,12 +316,13 @@ def effectiveness_from_NTU(NTU, Cr, subtype='counterflow'):
         return effectiveness
     elif subtype == 'crossflow':
         t0 = 1.0/(4.*Cr*NTU)
-        int_term = quad(crossflow_effectiveness_to_int, 0, 2.*NTU*Cr**0.5, args=(NTU, t0,))[0]
-        return 1./Cr - exp(-Cr*NTU)/(2.*(Cr*NTU)**2)*int_term
+        int_term = quad(crossflow_effectiveness_to_int, 0, 2.*NTU*sqrt(Cr), args=(NTU, t0,))[0]
+        CrNTU = Cr*NTU
+        return 1./Cr - exp(-CrNTU)/(2.*CrNTU*CrNTU)*int_term
     elif subtype == 'crossflow approximate':
         return 1. - exp(1./Cr*NTU**0.22*(exp(-Cr*NTU**0.78) - 1.))
     elif subtype == 'crossflow, mixed Cmin':
-        return 1. -exp(-Cr**-1*(1. - exp(-Cr*NTU)))
+        return 1. -exp(-1.0/Cr*(1. - exp(-Cr*NTU)))
     elif subtype ==  'crossflow, mixed Cmax':
         return (1./Cr)*(1. - exp(-Cr*(1. - exp(-NTU))))
     elif subtype == 'boiler' or subtype == 'condenser':
@@ -330,7 +331,7 @@ def effectiveness_from_NTU(NTU, Cr, subtype='counterflow'):
         raise ValueError('Input heat exchanger type not recognized')
 
 
-def NTU_from_effectiveness(effectiveness, Cr, subtype='counterflow'):
+def NTU_from_effectiveness(effectiveness, Cr, subtype='counterflow', n_shell_tube=None):
     r'''Returns the Number of Transfer Units of a heat exchanger at a specified
     heat capacity rate, effectiveness, and configuration. The following
     configurations are supported:
@@ -419,9 +420,10 @@ def NTU_from_effectiveness(effectiveness, Cr, subtype='counterflow'):
     subtype : str, optional
         The subtype of exchanger; one of 'counterflow', 'parallel', 'crossflow'
         'crossflow approximate', 'crossflow, mixed Cmin',
-        'crossflow, mixed Cmax', 'boiler', 'condenser', 'S&T', or 'nS&T' where
-        n is the number of shell and tube exchangers in a row.
-
+        'crossflow, mixed Cmax', 'boiler', 'condenser', 'S&T'.
+    n_shell_tube : None or int, optional
+        The number of shell and tube exchangers in a row, [-]
+    
     Returns
     -------
     NTU : float
@@ -460,7 +462,7 @@ def NTU_from_effectiveness(effectiveness, Cr, subtype='counterflow'):
 
     >>> NTU_from_effectiveness(effectiveness=0.6834977044311439, Cr=0.7, subtype='S&T')
     5.000000000000
-    >>> NTU_from_effectiveness(effectiveness=0.9205058702789254, Cr=0.7, subtype='50S&T')
+    >>> NTU_from_effectiveness(effectiveness=0.9205058702789254, Cr=0.7, n_shell_tube=50, subtype='S&T')
     4.999999999999
 
 
@@ -519,14 +521,13 @@ def NTU_from_effectiveness(effectiveness, Cr, subtype='counterflow'):
                              'possible is %s.' % (1./(Cr + 1.))) # numba: delete
 #                             ) # numba: uncomment
         return -log(1. - effectiveness*(1. + Cr))/(1. + Cr)
-    elif 'S&T' in subtype:
+    elif 'S&T' == subtype:
         # [2]_ gives the expression
         # D = (1+Cr**2)**0.5
         # 1/D*log((2-eff*(1+Cr-D))/(2-eff*(1+Cr + D)))
         # This is confirmed numerically to be the same equation rearranged
         # differently
-        str_shells = subtype.split('S&T')[0]
-        shells = int(str_shells) if str_shells else 1
+        shells = n_shell_tube if n_shell_tube is not None else 1
 
         F = ((effectiveness*Cr - 1.)/(effectiveness - 1.))**(1./shells)
         e1 = (F - 1.)/(F - Cr)
@@ -896,7 +897,8 @@ def Pc(x, y):
 
 
 def effectiveness_NTU_method(mh, mc, Cph, Cpc, subtype='counterflow', Thi=None,
-                             Tho=None, Tci=None, Tco=None, UA=None):
+                             Tho=None, Tci=None, Tco=None, UA=None, 
+                             n_shell_tube=None):
     r'''Wrapper for the various effectiveness-NTU method function calls,
     which can solve a heat exchanger. The heat capacities and mass flows
     of each stream and the type of the heat exchanger are always required.
@@ -933,6 +935,8 @@ def effectiveness_NTU_method(mh, mc, Cph, Cpc, subtype='counterflow', Thi=None,
         Outlet temperature of cold fluid, [K]
     UA : float, optional
         Combined Area-heat transfer coefficient term, [W/K]
+    n_shell_tube : None or int, optional
+        The number of shell and tube exchangers in a row, [-]
 
     Returns
     -------
@@ -1000,19 +1004,19 @@ def effectiveness_NTU_method(mh, mc, Cph, Cpc, subtype='counterflow', Thi=None,
     Ch = mh*Cph
     if UA is not None:
         NTU = NTU_from_UA(UA=UA, Cmin=Cmin)
-        effectiveness = eff = effectiveness_from_NTU(NTU=NTU, Cr=Cr, subtype=subtype)
+        effectiveness = eff = effectiveness_from_NTU(NTU=NTU, Cr=Cr, n_shell_tube=n_shell_tube, subtype=subtype)
 
         possible_inputs = [(Tci, Thi), (Tci, Tho), (Tco, Thi), (Tco, Tho)]
         if not any([i for i in possible_inputs if None not in i]):
             raise ValueError('One set of (Tci, Thi), (Tci, Tho), (Tco, Thi), or (Tco, Tho) are required along with UA.')
 
-        if Thi and Tci:
+        if Thi is not None and Tci is not None:
             Q = eff*Cmin*(Thi - Tci)
-        elif Tho and Tco :
+        elif Tho is not None and Tco is not None:
             Q = eff*Cmin*Cc*Ch*(Tco - Tho)/(eff*Cmin*(Cc+Ch) - Ch*Cc)
-        elif Thi and Tco:
+        elif Thi is not None and Tco is not None:
             Q = Cmin*Cc*eff*(Tco-Thi)/(eff*Cmin - Cc)
-        elif Tho and Tci:
+        elif Tho is not None and Tci is not None:
             Q = Cmin*Ch*eff*(Tci-Tho)/(eff*Cmin - Ch)
         # The following is not used as it was decided to require complete temperature information
 #        elif Tci and Tco:
@@ -1020,11 +1024,11 @@ def effectiveness_NTU_method(mh, mc, Cph, Cpc, subtype='counterflow', Thi=None,
 #        elif Tho and Thi:
 #            Q = Ch*(Thi-Tho)
         # Compute the remaining temperatures with the fewest lines of code
-        if Tci and not Tco:
+        if Tci is not None and Tco is None:
             Tco = Tci + Q/(Cc)
         else:
             Tci = Tco - Q/(Cc)
-        if Thi and not Tho:
+        if Thi is not None and Tho is None:
             Tho = Thi - Q/(Ch)
         else:
             Thi = Tho + Q/(Ch)
@@ -1059,7 +1063,7 @@ def effectiveness_NTU_method(mh, mc, Cph, Cpc, subtype='counterflow', Thi=None,
                             'when solving for UA')
 
         effectiveness = Q/Cmin/(Thi-Tci)
-        NTU = NTU_from_effectiveness(effectiveness, Cr, subtype=subtype)
+        NTU = NTU_from_effectiveness(effectiveness, Cr, n_shell_tube=n_shell_tube, subtype=subtype)
         UA = UA_from_NTU(NTU, Cmin)
     return {'Q': Q, 'UA': UA, 'Cr':Cr, 'Cmin': Cmin, 'Cmax':Cmax,
             'effectiveness': effectiveness, 'NTU': NTU, 'Thi': Thi, 'Tho': Tho,
@@ -1404,7 +1408,15 @@ def temperature_effectiveness_basic(R1, NTU1, subtype='crossflow'):
     '''
     if subtype == 'counterflow':
         # Same as TEMA 1 pass
-        P1 = (1.0 - exp(-NTU1*(1 - R1)))/(1.0 - R1*exp(-NTU1*(1-R1)))
+        if R1 == 1.0:
+            '''from sympy import *
+            R1, NTU1 = symbols('R1, NTU1')
+            P1 = (1 - exp(-NTU1*(1 - R1)))/(1 - R1*exp(-NTU1*(1-R1)))
+            limit(P1, R1, 1)
+            '''
+            P1 = -NTU1/(-NTU1 - 1.0)
+        else:
+            P1 = (1.0 - exp(-NTU1*(1 - R1)))/(1.0 - R1*exp(-NTU1*(1-R1)))
     elif subtype == 'parallel':
         P1 = (1.0 - exp(-NTU1*(1 + R1)))/(1.0 + R1)
     elif subtype == 'crossflow approximate':
@@ -4251,10 +4263,10 @@ def F_LMTD_Fakheri(Thi, Tho, Tci, Tco, shells=1):
 # TEMA tubes from http://www.engineeringpage.com/technology/thermal/tubesize.html
 # NPSs in inches, which convert to outer diameter exactly.
 _NPSs = [0.25, 0.25, 0.375, 0.375, 0.375, 0.5, 0.5, 0.625, 0.625, 0.625, 0.75, 0.75, 0.75, 0.75, 0.75, 0.875, 0.875, 0.875, 0.875, 1, 1, 1, 1, 1.25, 1.25, 1.25, 1.25, 2, 2]
-_Dos = [ i/1000. for i in [6.35, 6.35, 9.525, 9.525, 9.525, 12.7, 12.7, 15.875, 15.875, 15.875, 19.05, 19.05, 19.05, 19.05, 19.05, 22.225, 22.225, 22.225, 22.225, 25.4, 25.4, 25.4, 25.4, 31.75, 31.75, 31.75, 31.75, 50.8, 50.8]]
+_Dos = [0.00635, 0.00635, 0.009525, 0.009525, 0.009525, 0.0127, 0.0127, 0.015875, 0.015875, 0.015875, 0.01905, 0.01905, 0.01905, 0.01905, 0.01905, 0.022225, 0.022225, 0.022225, 0.022225, 0.0254, 0.0254, 0.0254, 0.0254, 0.03175, 0.03175, 0.03175, 0.03175, 0.0508, 0.0508]
 _BWGs = [22, 24, 18, 20, 22, 18, 20, 16, 18, 20, 12, 14, 16, 18, 20, 14, 16, 18, 20, 12, 14, 16, 18, 10, 12, 14, 16, 12, 14]
-_ts = [i/1000. for i in [0.711, 0.559, 1.245, 0.889, 0.711, 1.245, 0.889, 1.651, 1.245, 0.889, 2.769, 2.108, 1.651, 1.245, 0.889, 2.108, 1.651, 1.245, 0.889, 2.769, 2.108, 1.651, 1.245, 3.404, 2.769, 2.108, 1.651, 2.769, 2.108]]
-_Dis = [i/1000. for i in [4.928, 5.232, 7.035, 7.747, 8.103, 10.21, 10.922, 12.573, 13.385, 14.097, 13.512, 14.834, 15.748, 16.56, 17.272, 18.009, 18.923, 19.735, 20.447, 19.862, 21.184, 22.098, 22.91, 24.942, 26.212, 27.534, 28.448, 45.262, 46.584]]
+_ts = [0.000711, 0.000559, 0.001245, 0.000889, 0.000711, 0.001245, 0.000889, 0.001651, 0.001245, 0.000889, 0.002769, 0.002108, 0.001651, 0.001245, 0.000889, 0.002108, 0.001651, 0.001245, 0.000889, 0.002769, 0.002108, 0.001651, 0.001245, 0.003404, 0.002769, 0.002108, 0.001651, 0.002769, 0.002108]
+_Dis = [0.004928, 0.005232, 0.007035, 0.007747, 0.008103, 0.01021, 0.010922, 0.012573, 0.013385, 0.014097, 0.013512, 0.014834, 0.015748, 0.01656, 0.017272, 0.018009, 0.018923, 0.019735, 0.020447, 0.019862, 0.021184, 0.022098, 0.02291, 0.024942, 0.026212, 0.027534, 0.028448, 0.045262, 0.046584]
 
 # Structure: Look up NPS, get BWGs. BWGs listed in increasing order --> decreasing thickness
 TEMA_tubing = {0.25: (22, 24), 0.375: (18, 20, 22), 0.5: (18, 20),
@@ -4345,13 +4357,13 @@ def get_tube_TEMA(NPS=None, BWG=None, Do=None, Di=None, tmin=None):
 TEMA_Ls_imperial = [96., 120., 144., 192., 240.] # inches
 TEMA_Ls = [2.438, 3.048, 3.658, 4.877, 6.096]
 HTRI_Ls_imperial = [6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60] # ft
-HTRI_Ls = [round(i*foot, 3) for i in HTRI_Ls_imperial]
+HTRI_Ls = [1.829, 2.438, 3.048, 3.658, 4.267, 4.877, 5.486, 6.096, 6.706, 7.315, 8.534, 9.754, 10.973, 12.192, 13.411, 14.63, 15.85, 17.069, 18.288]
 
 
 # Shells up to 120 inch in diameter.
 # This is for plate shells, not pipe (up to 12 inches, pipe is used)
 HEDH_shells_imperial = [12., 13., 14., 15., 16., 17., 18., 19., 20., 21., 22., 24., 26., 28., 30., 32., 34., 36., 38., 40., 42., 44., 46., 48., 50., 52., 54., 56., 58., 60., 63., 66., 69., 72., 75., 78., 81., 84., 87., 90., 93., 96., 99., 102., 105., 108., 111., 114., 117., 120.]
-HEDH_shells = [round(i*inch, 6) for i in HEDH_shells_imperial]
+HEDH_shells = [0.3048, 0.3302, 0.3556, 0.381, 0.4064, 0.4318, 0.4572, 0.4826, 0.508, 0.5334, 0.5588, 0.6096, 0.6604, 0.7112, 0.762, 0.8128, 0.8636, 0.9144, 0.9652, 1.016, 1.0668, 1.1176, 1.1684, 1.2192, 1.27, 1.3208, 1.3716, 1.4224, 1.4732, 1.524, 1.6002, 1.6764, 1.7526, 1.8288, 1.905, 1.9812, 2.0574, 2.1336, 2.2098, 2.286, 2.3622, 2.4384, 2.5146, 2.5908, 2.667, 2.7432, 2.8194, 2.8956, 2.9718, 3.048]
 
 
 HEDH_pitches = {0.25: (1.25, 1.5), 0.375: (1.330, 1.420),
@@ -4391,7 +4403,7 @@ def DBundle_min(Do):
        Transfer. Heat Exchanger Design Handbook. Washington:
        Hemisphere Pub. Corp., 1983.
     '''
-    data = [(0.006, 0.1), (0.01, 0.1), (.014, 0.3), (0.02, 0.5), (0.03, 1.0)]
+    data = ((0.006, 0.1), (0.01, 0.1), (.014, 0.3), (0.02, 0.5), (0.03, 1.0))
     for Do_tabulated, DBundle in data:
         if Do <= Do_tabulated:
             return DBundle

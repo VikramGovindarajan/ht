@@ -21,9 +21,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.'''
 
 from __future__ import division
-from ht import *
-from fluids.numerics import assert_close, assert_close1d, assert_close2d
-import pytest
+from ht import Lehrer, Stein_Schmidt
+from fluids.numerics import assert_close
 
 
 def test_conv_jacket():

@@ -12,7 +12,6 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
 import time
 
@@ -64,10 +63,8 @@ extensions = [
 
 katex_css_path = \
     'https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css'
-katex_js_path = \
-    'https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.js'
-katex_autorender_path = \
-    'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.12.0/contrib/auto-render.min.js'
+katex_js_path = 'katex.min.js'
+katex_autorender_path = 'auto-render.min.js'    
 
 
 html_baseurl = 'https://ht.readthedocs.io/'
@@ -318,7 +315,8 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'numpy': ('http://docs.scipy.org/doc/numpy', None),
                        'scipy': ('http://docs.scipy.org/doc/scipy/reference', None),
                        'matplotlib': ('http://matplotlib.sourceforge.net', None),
-                       'thermo': ('https://thermo.readthedocs.io/', None),           		               'chemicals': ('https://chemicals.readthedocs.io/', None),
+                       'thermo': ('https://thermo.readthedocs.io/', None),
+                       'chemicals': ('https://chemicals.readthedocs.io/', None),
                        'fluids': ('https://fluids.readthedocs.io/', None)}
 html_theme = "nature"
 

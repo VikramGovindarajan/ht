@@ -21,11 +21,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.'''
 
 from __future__ import division
-from math import log, log10, exp, sqrt, tanh, factorial, isnan
-from ht import *
+from math import exp, factorial, isnan, sqrt, tanh
+from ht import (DBundle_for_Ntubes_HEDH, DBundle_for_Ntubes_Phadkeb, DBundle_min, D_for_Ntubes_VDI,
+                F_LMTD_Fakheri, LMTD, L_unsupported_max, NTU_from_P_E, NTU_from_P_G, NTU_from_P_H,
+                NTU_from_P_J, NTU_from_P_basic, NTU_from_P_plate, NTU_from_effectiveness, Ntubes,
+                Ntubes_HEDH, Ntubes_Perrys, Ntubes_Phadkeb, Ntubes_VDI, P_NTU_method,
+                effectiveness_NTU_method, effectiveness_from_NTU, shell_clearance,
+                size_bundle_from_tubecount, temperature_effectiveness_TEMA_E,
+                temperature_effectiveness_TEMA_G, temperature_effectiveness_TEMA_H,
+                temperature_effectiveness_TEMA_J, temperature_effectiveness_air_cooler,
+                temperature_effectiveness_basic, temperature_effectiveness_plate)
 import ht
 import numpy as np
-from fluids.numerics import assert_close, assert_close1d, assert_close2d, linspace, logspace
+from fluids.numerics import assert_close, assert_close1d, assert_close2d
 import pytest
 from random import uniform, randint, seed, choice
 seed(0)
@@ -349,12 +357,12 @@ def test_effectiveness_NTU():
         shells = randint(1, 10)
         eff_max = (-((-Cr + sqrt(Cr**2 + 1) + 1)/(Cr + sqrt(Cr**2 + 1) - 1))**shells + 1)/(Cr - ((-Cr + sqrt(Cr**2 + 1) + 1)/(Cr + sqrt(Cr**2 + 1) - 1))**shells)
         eff = uniform(0, eff_max-1E-5)
-        N = NTU_from_effectiveness(eff, Cr=Cr, subtype=str(shells)+'S&T')
-        eff_calc = effectiveness_from_NTU(N, Cr=Cr, subtype=str(shells)+'S&T')
+        N = NTU_from_effectiveness(eff, Cr=Cr, n_shell_tube=shells, subtype='S&T')
+        eff_calc = effectiveness_from_NTU(N, Cr=Cr, n_shell_tube=shells, subtype='S&T')
         assert_close(eff, eff_calc)
 
     with pytest.raises(Exception):
-        NTU_from_effectiveness(.99, Cr=.7, subtype='5S&T')
+        NTU_from_effectiveness(.99, Cr=.7, n_shell_tube=5, subtype='S&T')
 
     # Easy tests
     effectiveness = effectiveness_from_NTU(NTU=5, Cr=0.7, subtype='crossflow, mixed Cmin')
@@ -480,7 +488,7 @@ def test_F_LMTD_Fakheri():
     assert_close(F_calc, 0.9925689447100824)
 
     for i in range(1, 10):
-        ans = effectiveness_NTU_method(mh=5.2, mc=1.45, Cph=1860., Cpc=1900, subtype=str(i)+'S&T', Tci=15, Tco=85, Thi=130)
+        ans = effectiveness_NTU_method(mh=5.2, mc=1.45, Cph=1860., Cpc=1900, n_shell_tube=i, subtype='S&T', Tci=15, Tco=85, Thi=130)
         dTlm = LMTD(Thi=130, Tho=110.06100082712986,  Tci=15, Tco=85)
         F_expect = ans['Q']/ans['UA']/dTlm
 
@@ -1035,8 +1043,8 @@ def test_temperature_effectiveness_plate():
 @pytest.mark.mpmath
 def test_NTU_from_P_basic():
     # Analytical result for counterflow
-    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000)
-    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000)
+    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000).tolist()
+    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000).tolist()
 
     for i in range(100):
         R1 = float(choice(R1s))
@@ -1097,8 +1105,8 @@ def test_NTU_from_P_basic():
 
 
     # Test 'crossflow, mixed 1&2':
-    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000)
-    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000)
+    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000).tolist()
+    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000).tolist()
 
     seed(0)
     tot = 0
@@ -1160,8 +1168,8 @@ def test_NTU_from_P_E():
     # not yet documented
 
     # 1 tube pass AKA counterflow
-    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000)
-    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000)
+    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000).tolist()
+    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000).tolist()
 
     # Exact same asa as the counterflow basic case
     tot = 0
@@ -1236,8 +1244,8 @@ def test_NTU_from_P_E():
         assert tot >= 70
 
     # 3 pass optimal and not optimal
-    R1s = np.logspace(np.log10(2E-5), np.log10(1E1), 10000)
-    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E1), 10000)
+    R1s = np.logspace(np.log10(2E-5), np.log10(1E1), 10000).tolist()
+    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E1), 10000).tolist()
 
     seed(0)
     for optimal in [True, False]:
@@ -1265,8 +1273,8 @@ def test_NTU_from_P_E():
 @pytest.mark.mpmath
 def test_NTU_from_P_H():
     # Within these limits everything is fund
-    R1s = np.logspace(np.log10(2E-5), np.log10(1E1), 10000)
-    NTU1s = np.logspace(np.log10(1E-4), np.log10(10), 10000)
+    R1s = np.logspace(np.log10(2E-5), np.log10(1E1), 10000).tolist()
+    NTU1s = np.logspace(np.log10(1E-4), np.log10(10), 10000).tolist()
 
     seed(0)
     for i in range(100):
@@ -1333,8 +1341,8 @@ def test_NTU_from_P_G():
 
 
     # Run the gamut testing all the solvers
-    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000)
-    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000)
+    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000).tolist()
+    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000).tolist()
     seed(0)
     tot = 0
     for Ntp, optimal in zip([1, 2, 2], [True, True, False]):
@@ -1360,8 +1368,8 @@ def test_NTU_from_P_G():
 @pytest.mark.mpmath
 def test_NTU_from_P_J():
     # Run the gamut testing all the solvers
-    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000)
-    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000)
+    R1s = np.logspace(np.log10(2E-5), np.log10(1E2), 10000).tolist()
+    NTU1s = np.logspace(np.log10(1E-4), np.log10(1E2), 10000).tolist()
     seed(0)
     tot = 0
     for Ntp in [1, 2, 4]:
@@ -1446,8 +1454,8 @@ def test_NTU_from_P_plate():
         NTU_from_P_plate(P1=.091, R1=10, Np1=1, Np2=1, counterflow=False)
 
     # 1-2 True True
-    R1s = np.logspace(np.log10(2E-5), np.log10(10), 10000) # too high R1 causes overflows
-    NTU1s = np.logspace(np.log10(1E-4), np.log10(99), 10000)
+    R1s = np.logspace(np.log10(2E-5), np.log10(10), 10000).tolist() # too high R1 causes overflows
+    NTU1s = np.logspace(np.log10(1E-4), np.log10(99), 10000).tolist()
 
     tot = 0
     seed(0)
@@ -1709,3 +1717,23 @@ def test_L_unsupported_max():
 
     # Terribly pessimistic
     assert_close(L_unsupported_max(Do=10, material='CS'), 3.175)
+    
+    
+def test_issue_6():
+    at_error = P_NTU_method(m1=3, m2=3, Cp1=1860., Cp2=1860,
+    subtype='counterflow', Ntp=4, T2i=15, T1i=130, UA=3041.75)
+    before_error = P_NTU_method(m1=3, m2=3*(1+1e-8), Cp1=1860., Cp2=1860,
+    subtype='counterflow', Ntp=4, T2i=15, T1i=130, UA=3041.75)
+    for k, v in at_error.items():
+        assert_close(v, before_error[k], rtol=1e-8)
+        
+    Flowh = 5
+    Flowc = 5
+    Cph = 4000
+    Cpc = 4000
+    subtype = 'counterflow'
+    UA = 2500
+    Thi = 90
+    Tci = 0
+    results = effectiveness_NTU_method(Flowh,Flowc,Cph,Cpc,subtype=subtype,UA=UA,
+                                        Thi = Thi, Tci=Tci)

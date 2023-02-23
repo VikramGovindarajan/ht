@@ -21,9 +21,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.'''
 
 from __future__ import division
-from ht import *
-from ht.conv_plate import *
-from fluids.numerics import assert_close, assert_close1d, assert_close2d
+from ht.conv_plate import (Nu_plate_Khan_Khan, Nu_plate_Kumar, Nu_plate_Martin,
+                           Nu_plate_Muley_Manglik)
+from fluids.numerics import assert_close
 import pytest
 
 
